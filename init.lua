@@ -39,6 +39,8 @@ vim.o.list = true -- Show <tab> and trailing spaces.
 -- instead raise a dialog asking if you wish to save the current file(s). See `:h 'confirm'`
 vim.o.confirm = true
 
+-- need fzf as variable
+
 -- KEYMAPS
 --
 -- See `:h vim.keymap.set()`, `:h mapping`, `:h keycodes`
@@ -55,6 +57,11 @@ vim.keymap.set({ 'n' }, '<A-h>', '<C-w>h')
 vim.keymap.set({ 'n' }, '<A-j>', '<C-w>j')
 vim.keymap.set({ 'n' }, '<A-k>', '<C-w>k')
 vim.keymap.set({ 'n' }, '<A-l>', '<C-w>l')
+
+-- Map shift + H and shift + L to go to start and end of line
+vim.keymap.set({'n', 'v'}, 'H', '^')
+vim.keymap.set({'n', 'v'}, 'L', '$')
+
 
 -- AUTOCOMMANDS (EVENT HANDLERS)
 --
@@ -100,9 +107,18 @@ vim.pack.add({
   'https://github.com/stevearc/quicker.nvim',
   -- Git integration
   'https://github.com/lewis6991/gitsigns.nvim',
+  'https://github.com/wakatime/vim-wakatime',
 })
 
 require('fzf-lua').setup { fzf_colors = true }
+local fzf = require('fzf-lua')
+
+-- Map <leader>ff to FzfLua files
+vim.keymap.set('n', '<leader>ff', fzf.files, {desc= "Find Files"})
+vim.keymap.set('n', '<leader>fg', fzf.live_grep, {desc= "Grep project"})
+vim.keymap.set('n', '<leader>fb', fzf.buffers, {desc= "Find Buffers"})
+
+
 require('mini.completion').setup {}
 require('quicker').setup {}
 require('gitsigns').setup {}

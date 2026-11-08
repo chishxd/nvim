@@ -19,6 +19,10 @@
     "quicker.nvim": {
       "rev": "4a6883cb13fe097a20a046eb55f6dffd239276e3",
       "src": "https://github.com/stevearc/quicker.nvim"
+    },
+    "vim-wakatime": {
+      "rev": "98cb7a8a09f8a0cb225b5955bf491ffb9860569f",
+      "src": "https://github.com/wakatime/vim-wakatime"
     }
   }
 }
