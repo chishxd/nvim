@@ -38,8 +38,36 @@ local function toggle_term()
   vim.cmd.startinsert()
 end
 
-vim.keymap.set('n', '<leader>ft', toggle_term, { desc = 'Toggle terminal' })
+vim.keymap.set('n', '<leader>t', toggle_term, { desc = 'Toggle terminal' })
 vim.keymap.set('t', '<A-t>', toggle_term, { desc = 'Toggle terminal' })
+
+
+-- stole from https://github.com/jonhoo/configs/tree/master/editor/.config/nvim
+vim.o.undofile = true        -- undo survives closing the file
+vim.o.signcolumn = 'yes'     -- no layout jump when diagnostics/git signs appear
+vim.o.splitright = true
+vim.o.splitbelow = true
+vim.o.wrap = false
+vim.o.colorcolumn = '80'
+vim.api.nvim_create_autocmd('FileType', { pattern = 'rust', command = 'setlocal colorcolumn=100' })
+vim.o.listchars = 'tab:^ ,nbsp:¬,extends:»,precedes:«,trail:•'  -- you already have list on
+
+-- keep search results centered
+vim.keymap.set('n', 'n', 'nzz')
+vim.keymap.set('n', 'N', 'Nzz')
+vim.keymap.set('n', '*', '*zz')
+
+-- reopen files at the last cursor position
+vim.api.nvim_create_autocmd('BufReadPost', {
+  callback = function(ev)
+    local mark = vim.api.nvim_buf_get_mark(ev.buf, '"')
+    if mark[1] > 0 and mark[1] <= vim.api.nvim_buf_line_count(ev.buf) then
+      pcall(vim.api.nvim_win_set_cursor, 0, mark)
+    end
+  end,
+})
+
+
 -- Sync clipboard between OS and Neovim. Schedule the setting after `UIEnter` because it can
 -- increase startup-time. Remove this option if you want your OS clipboard to remain independent.
 -- See `:h 'clipboard'`
@@ -84,7 +112,7 @@ vim.keymap.set({ 'n' }, '<A-h>', '<C-w>h')
 vim.keymap.set({ 'n' }, '<A-j>', '<C-w>j')
 vim.keymap.set({ 'n' }, '<A-k>', '<C-w>k')
 vim.keymap.set({ 'n' }, '<A-l>', '<C-w>l')
-
+vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<cr>', { desc = 'Clear search highlight' })
 --Quick save
 vim.keymap.set('n', '<leader>w', '<cmd>w<cr>')
 
@@ -157,7 +185,7 @@ vim.pack.add({
   'https://github.com/wakatime/vim-wakatime',
   -- the statusline
   'https://github.com/nvim-tree/nvim-web-devicons',
-  'https://github.com/nvim-lualine/lualine.nvim'
+  'https://github.com/nvim-lualine/lualine.nvim',
   --the theme
   'https://github.com/sainnhe/gruvbox-material',
   -- which-key for info
@@ -176,7 +204,7 @@ local fzf = require('fzf-lua')
 vim.keymap.set('n', '<leader>ff', fzf.files, {desc= "Find Files"})
 vim.keymap.set('n', '<leader>fg', fzf.live_grep, {desc= "Grep project"})
 vim.keymap.set('n', '<leader>fb', fzf.buffers, {desc= "Find Buffers"})
-vim.keymap.set('n', '<leader><leader>', fzf.buffers, { desc = 'Buffers' })
+vim.keymap.set('n', '<leader><leader>', fzf.files, { desc = 'Buffers' })
 vim.keymap.set('n', '<leader>bd', '<cmd>bdelete<cr>', { desc = 'Close buffer' })
 
 
@@ -198,10 +226,20 @@ require('which-key').add({
 
 vim.o.background = 'dark'
 vim.cmd.colorscheme('gruvbox-material')
+
 -- the bottom status line
 -- plain bar: same background for every section, no colored mode block
 local theme = require('lualine.themes.auto')
 for _, m in pairs(theme) do m.a, m.b = m.c, m.c end
+
+local function modified_buffers()
+  local n = 0
+  for _, b in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.bo[b].buflisted and vim.bo[b].modified then n = n + 1 end
+  end
+  return n > 0 and ('● ' .. n .. ' unsaved') or ''
+end
+
 
 require('lualine').setup {
   options = {
@@ -213,7 +251,7 @@ require('lualine').setup {
   sections = {
     lualine_a = { 'mode' },
     lualine_b = { 'filename' },
-    lualine_c = { 'lsp_status', 'branch' },
+    lualine_c = { 'lsp_status', 'branch', modified_buffers},
     lualine_x = { 'diff', 'diagnostics' },
     lualine_y = { function() return os.date('%H:%M') end },
     lualine_z = { 'progress', 'location' },
@@ -229,13 +267,31 @@ vim.lsp.config('lua_ls', {
     workspace = { library = { vim.env.VIMRUNTIME } },
   } },
 })
+
+vim.lsp.config('rust_analyzer', {
+  settings = { ['rust-analyzer'] = { check = { command = 'clippy' } } },
+})
+
 vim.lsp.enable({ 'rust_analyzer', 'clangd', 'zls', 'lua_ls' })
 
 vim.lsp.inlay_hint.enable()
 vim.diagnostic.config({ virtual_text = true, severity_sort = true })
 
+fzf.register_ui_select()
+
+vim.keymap.set({ 'n', 'v' }, '<leader>ca', vim.lsp.buf.code_action, { desc = 'Code action' })
 -- format on save, only for the languages you work in
 vim.api.nvim_create_autocmd('BufWritePre', {
   pattern = { '*.rs', '*.c', '*.cpp', '*.h', '*.zig' },
   callback = function() vim.lsp.buf.format({ async = false }) end,
+})
+
+vim.api.nvim_create_autocmd('LspAttach', {
+  callback = function(ev)
+    local function map(lhs, fn, desc)
+      vim.keymap.set('n', lhs, fn, { buffer = ev.buf, desc = desc })
+    end
+    map('gd', vim.lsp.buf.definition,  'Go to definition')
+    map('gD', vim.lsp.buf.declaration, 'Go to declaration')
+  end,
 })
